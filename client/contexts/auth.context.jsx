@@ -1,46 +1,62 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import { toast } from "react-hot-toast";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data } = await axios.get("/api/auth/check", {
-          withCredentials: true,
-        });
-        setUser(data.user);
-      } catch (error) {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    checkAuth();
-  }, []);
-
-  const login = async (email, password) => {
-    const { data } = await axios.post(
-      "/api/auth/login",
-      { email, password },
-      {
+  const { data: user } = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/auth/me", {
         withCredentials: true,
-      }
-    );
-    setUser(data.user);
-  };
+      });
+      return data.user;
+    },
+    retry: false,
+  });
 
-  const logout = async () => {
-    await axios.post("/api/auth/logout", {}, { withCredentials: true });
-    setUser(null);
-  };
+  const loginMutation = useMutation({
+    mutationFn: async (formData) => {
+      const { data } = await axios.post("/api/auth/login", formData, {
+        withCredentials: true,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["currentUser"]);
+    },
+    onError: () => {
+      toast.error("Invalid email or password");
+    },
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await axios.post(
+        "/api/auth/logout",
+        {},
+        {
+          withCredentials: true,
+        }
+      );
+    },
+    onSuccess: () => {
+      queryClient.setQueryData(["currentUser"], null);
+    },
+  });
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user: user || null,
+        login: loginMutation.mutateAsync,
+        logout: logoutMutation.mutateAsync,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -12,14 +12,14 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route
-            path="/"
+            path="/:roomId?"
             element={
               <ProtectedRoute>
                 <ChatPage />
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </SocketProvider>
     </AuthProvider>

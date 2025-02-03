@@ -1,49 +1,71 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "../contexts/SocketContext";
+import axios from "axios";
+import { format } from "date-fns";
+import { motion } from "framer-motion";
+import { toast } from "react-hot-toast";
 
 export default function MessageList({ room }) {
-  const [messages, setMessages] = useState([]);
+  const queryClient = useQueryClient();
   const socket = useSocket();
 
-  useEffect(() => {
-    if (!room) return;
-
-    const loadMessages = async () => {
+  // Fetch messages using React Query
+  const { data: messages = [] } = useQuery({
+    queryKey: ["messages", room?.id],
+    queryFn: async () => {
+      if (!room) return [];
       try {
         const { data } = await axios.get(`/api/messages/${room.id}`, {
           withCredentials: true,
         });
-        setMessages(data);
+        return data;
       } catch (error) {
-        console.error("Error loading messages:", error);
+        toast.error("Failed to load messages");
+        throw error;
       }
+    },
+    enabled: !!room,
+  });
+
+  // Handle real-time messages
+  useEffect(() => {
+    if (!socket || !room) return;
+
+    const handleNewMessage = (message) => {
+      queryClient.setQueryData(["messages", room.id], (old) => [
+        ...(old || []),
+        message,
+      ]);
     };
 
-    loadMessages();
-
-    socket?.emit("join-room", room.id);
-    socket?.on("new-message", (message) => {
-      setMessages((prev) => [...prev, message]);
-    });
+    socket.emit("join-room", room.id);
+    socket.on("new-message", handleNewMessage);
 
     return () => {
-      socket?.off("new-message");
+      socket.off("new-message", handleNewMessage);
     };
-  }, [room, socket]);
+  }, [socket, room, queryClient]);
 
   return (
-    <div className="message-list">
+    <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {messages.map((message) => (
-        <div key={message.id} className="message">
-          <div className="message-header">
-            <span className="username">{message.sender.username}</span>
-            <span className="timestamp">
-              {new Date(message.createdAt).toLocaleTimeString()}
-            </span>
+        <motion.div
+          key={message.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="flex gap-3 items-start"
+        >
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{message.sender.username}</span>
+              <span className="text-sm text-gray-500">
+                {format(new Date(message.createdAt), "HH:mm")}
+              </span>
+            </div>
+            <p className="text-gray-800">{message.content}</p>
           </div>
-          <div className="message-content">{message.content}</div>
-        </div>
+        </motion.div>
       ))}
     </div>
   );

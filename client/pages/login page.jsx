@@ -1,42 +1,54 @@
-import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { register, handleSubmit } = useForm();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (data) => {
     try {
-      await login(email, password);
+      await login(data);
       navigate("/");
+      toast.success("Logged in successfully");
     } catch (error) {
-      console.error("Login failed:", error);
+      toast.error("Login failed");
     }
   };
 
   return (
-    <div className="auth-container">
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          required
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          required
-        />
-        <button type="submit">Login</button>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="bg-white p-8 rounded-lg shadow-md w-96"
+      >
+        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Email</label>
+            <input
+              {...register("email", { required: true })}
+              type="email"
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Password</label>
+            <input
+              {...register("password", { required: true })}
+              type="password"
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+          >
+            Login
+          </button>
+        </div>
       </form>
     </div>
   );

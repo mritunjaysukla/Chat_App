@@ -5,19 +5,26 @@ const SocketContext = createContext();
 
 export function SocketProvider({ children }) {
   const [socket, setSocket] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const newSocket = io(import.meta.env.VITE_API_URL, {
+    const socketInstance = io(import.meta.env.VITE_API_URL, {
       withCredentials: true,
-      autoConnect: false,
+      autoConnect: true,
     });
-    setSocket(newSocket);
 
-    return () => newSocket.disconnect();
+    setSocket(socketInstance);
+
+    socketInstance.on("connect", () => setIsConnected(true));
+    socketInstance.on("disconnect", () => setIsConnected(false));
+
+    return () => socketInstance.disconnect();
   }, []);
 
   return (
-    <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>
+    <SocketContext.Provider value={{ socket, isConnected }}>
+      {children}
+    </SocketContext.Provider>
   );
 }
 
