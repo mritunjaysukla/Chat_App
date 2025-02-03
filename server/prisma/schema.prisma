@@ -1,0 +1,192 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int               @id @default(autoincrement())
+  username       String            @unique
+  email          String            @unique
+  passwordHash   String
+  avatarUrl      String?           @default("default-avatar.png")
+  status         UserStatus        @default(Offline)
+  role           UserRole          @default(User)
+  isVerified     Boolean           @default(false)
+  lastLogin      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  messages       Message[]
+  reactions      MessageReaction[]
+  participants   Participant[]
+  attachments    Attachment[]
+  reportedUsers  UserReport[]      @relation("ReportedUser")
+  reportingUsers UserReport[]      @relation("ReportingUser")
+  roomAdmins     RoomAdmin[]
+  pinnedMessages PinnedMessage[]
+  Room           Room[]
+}
+
+model Room {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  description  String?
+  type         RoomType      @default(Public)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  creator      User?         @relation(fields: [creatorId], references: [id])
+  creatorId    Int?
+  participants Participant[]
+  messages     Message[]
+  attachments  Attachment[]
+  admins       RoomAdmin[]
+  isArchived   Boolean       @default(false)
+
+  @@index([name])
+}
+
+model Message {
+  id            Int               @id @default(autoincrement())
+  content       String
+  room          Room              @relation(fields: [roomId], references: [id])
+  roomId        Int
+  sender        User              @relation(fields: [senderId], references: [id])
+  senderId      Int
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  replyTo       Message?          @relation("MessageReplies", fields: [replyToId], references: [id])
+  replyToId     Int?
+  replies       Message[]         @relation("MessageReplies")
+  reactions     MessageReaction[]
+  attachments   Attachment[]
+  isPinned      Boolean           @default(false)
+  status        MessageStatus     @default(Sent)
+  deletedAt     DateTime?
+  PinnedMessage PinnedMessage[]
+
+  @@index([createdAt])
+}
+
+model Participant {
+  id       Int             @id @default(autoincrement())
+  user     User            @relation(fields: [userId], references: [id])
+  userId   Int
+  room     Room            @relation(fields: [roomId], references: [id])
+  roomId   Int
+  joinedAt DateTime        @default(now())
+  leftAt   DateTime?
+  role     ParticipantRole @default(Member)
+
+  @@unique([userId, roomId])
+}
+
+model MessageReaction {
+  id        Int      @id @default(autoincrement())
+  message   Message  @relation(fields: [messageId], references: [id])
+  messageId Int
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  reaction  String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, reaction])
+}
+
+model Attachment {
+  id         Int            @id @default(autoincrement())
+  message    Message        @relation(fields: [messageId], references: [id])
+  messageId  Int
+  url        String
+  type       AttachmentType
+  uploadedAt DateTime       @default(now())
+  User       User?          @relation(fields: [userId], references: [id])
+  userId     Int?
+  Room       Room?          @relation(fields: [roomId], references: [id])
+  roomId     Int?
+}
+
+model RoomAdmin {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+  room   Room @relation(fields: [roomId], references: [id])
+  roomId Int
+
+  @@unique([userId, roomId])
+}
+
+model PinnedMessage {
+  id        Int      @id @default(autoincrement())
+  message   Message  @relation(fields: [messageId], references: [id])
+  messageId Int
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  pinnedAt  DateTime @default(now())
+}
+
+model UserReport {
+  id              Int          @id @default(autoincrement())
+  reportedUser    User         @relation("ReportedUser", fields: [reportedUserId], references: [id])
+  reportedUserId  Int
+  reportingUser   User         @relation("ReportingUser", fields: [reportingUserId], references: [id])
+  reportingUserId Int
+  reason          String
+  createdAt       DateTime     @default(now())
+  status          ReportStatus @default(Pending)
+}
+
+enum UserRole {
+  User
+  Moderator
+  Admin
+}
+
+enum UserStatus {
+  Online
+  Offline
+  Away
+}
+
+enum RoomType {
+  Public
+  Private
+  Direct
+}
+
+enum ParticipantRole {
+  Member
+  Moderator
+  Admin
+}
+
+enum MessageStatus {
+  Sent
+  Delivered
+  Read
+  Edited
+  Deleted
+}
+
+enum AttachmentType {
+  Image
+  Video
+  Document
+  Audio
+  Other
+}
+
+enum ReportStatus {
+  Pending
+  Reviewed
+  Resolved
+  Dismissed
+}
