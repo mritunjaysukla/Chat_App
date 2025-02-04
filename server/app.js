@@ -8,9 +8,14 @@ import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import roomRoutes from "./routes/room.routes.js";
 import messageRoutes from "./routes/message.routes.js";
-import { authenticateJWT } from "./middlewares/auth.middleware.js";
+import { authenticateJWT } from "./middleware/auth.middleware.js";
 import { initializeSocket } from "./utils/socket.js";
+import { Router } from "express";
 
+const router = Router();
+
+// Add user routes here
+export default router;
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
