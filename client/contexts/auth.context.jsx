@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
   const { data: user } = useQuery({
     queryKey: ["currentUser"],
     queryFn: async () => {
-      const { data } = await axios.get("/api/auth/me", {
+      const { data } = await axios.get("/api/auth/login", {
         withCredentials: true,
       });
       return data.user;

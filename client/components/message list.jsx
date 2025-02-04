@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSocket } from "../contexts/SocketContext";
+import { useSocket } from "../contexts/socket.context";
 import axios from "axios";
 import { format } from "date-fns";
 import { motion } from "framer-motion";

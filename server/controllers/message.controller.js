@@ -2,7 +2,7 @@ import prisma from "../prisma.js";
 
 export const sendMessage = async (req, res) => {
   const { content, roomId } = req.body;
-  const userId = req.userId;
+  const userId = req.user.id;
 
   try {
     const message = await prisma.message.create({

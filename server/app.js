@@ -10,12 +10,7 @@ import roomRoutes from "./routes/room.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import { authenticateJWT } from "./middleware/auth.middleware.js";
 import { initializeSocket } from "./utils/socket.js";
-import { Router } from "express";
 
-const router = Router();
-
-// Add user routes here
-export default router;
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
@@ -24,6 +19,14 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // Middlewares
 app.use(
@@ -41,10 +44,9 @@ app.use("/api/users", authenticateJWT, userRoutes);
 app.use("/api/rooms", authenticateJWT, roomRoutes);
 app.use("/api/messages", authenticateJWT, messageRoutes);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: "Something went wrong!" });
+// Add this after your middleware setup
+app.get("/", (req, res) => {
+  res.json({ message: "API is running" });
 });
 
 // Initialize Socket.io

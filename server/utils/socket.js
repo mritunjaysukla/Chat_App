@@ -1,3 +1,4 @@
+import jwt from "jsonwebtoken";
 export const initializeSocket = (io, prisma) => {
   io.use(async (socket, next) => {
     try {
