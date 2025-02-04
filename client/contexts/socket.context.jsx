@@ -1,25 +1,26 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
 
 const SocketContext = createContext();
 
 export function SocketProvider({ children }) {
-  const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
-  useEffect(() => {
-    const socketInstance = io(import.meta.env.VITE_API_URL, {
+  const socket = useMemo(() => {
+    return io(import.meta.env.VITE_API_URL, {
       withCredentials: true,
-      autoConnect: true,
+      autoConnect: false,
     });
-
-    setSocket(socketInstance);
-
-    socketInstance.on("connect", () => setIsConnected(true));
-    socketInstance.on("disconnect", () => setIsConnected(false));
-
-    return () => socketInstance.disconnect();
   }, []);
+
+  useEffect(() => {
+    socket.connect();
+
+    socket.on("connect", () => setIsConnected(true));
+    socket.on("disconnect", () => setIsConnected(false));
+
+    return () => socket.disconnect();
+  }, [socket]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

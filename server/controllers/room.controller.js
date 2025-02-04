@@ -4,11 +4,16 @@ export const createRoom = async (req, res) => {
   try {
     const { name, description, type } = req.body;
 
+    // Validate room type
+    if (!["Public", "Private", "Direct"].includes(type)) {
+      return res.status(400).json({ message: "Invalid room type" });
+    }
+
     const room = await prisma.room.create({
       data: {
         name,
         description,
-        type,
+        type, // Prisma will validate this as an enum
         creatorId: req.user.id,
         participants: {
           create: {
@@ -24,7 +29,7 @@ export const createRoom = async (req, res) => {
 
     res.status(201).json(room);
   } catch (error) {
-    res.status(500).json({ message: "Error creating room" });
+    res.status(500).json({ message: `Error creating room: ${error.message}` });
   }
 };
 
@@ -38,13 +43,25 @@ export const getRooms = async (req, res) => {
         ],
       },
       include: {
-        participants: true,
-        messages: { take: 1, orderBy: { createdAt: "desc" } },
+        participants: {
+          select: {
+            userId: true,
+            role: true,
+          },
+        },
+        messages: {
+          take: 1,
+          orderBy: { createdAt: "desc" },
+          select: {
+            content: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
     res.json(rooms);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching rooms" });
+    res.status(500).json({ message: `Error fetching rooms: ${error.message}` });
   }
 };

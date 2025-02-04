@@ -12,8 +12,7 @@ export default function LoginPage() {
     try {
       await login(data);
       navigate("/");
-      toast.success("Logged in successfully");
-    } catch (error) {
+    } catch {
       toast.error("Login failed");
     }
   };

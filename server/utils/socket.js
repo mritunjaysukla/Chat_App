@@ -1,56 +1,33 @@
-import jwt from "jsonwebtoken";
-export const initializeSocket = (io, prisma) => {
-  io.use(async (socket, next) => {
-    try {
-      const token = socket.handshake.auth.token;
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
+import { Server } from "socket.io";
+
+export function initializeSocket(io, prisma) {
+  io.on("connection", (socket) => {
+    console.log(`⚡ User Connected: ${socket.id}`);
+
+    socket.on("join_room", async ({ roomId, userId }) => {
+      socket.join(roomId);
+      console.log(`User ${userId} joined room ${roomId}`);
+
+      // Mark user as online
+      await prisma.user.update({
+        where: { id: userId },
+        data: { status: "Online" },
       });
 
-      if (!user) return next(new Error("Authentication error"));
-
-      socket.user = user;
-      next();
-    } catch (error) {
-      next(new Error("Authentication error"));
-    }
-  });
-
-  io.on("connection", async (socket) => {
-    console.log(`User connected: ${socket.user.username}`);
-
-    // Join user to their rooms
-    const rooms = await prisma.participant.findMany({
-      where: { userId: socket.user.id },
-      select: { roomId: true },
+      io.to(roomId).emit("user_joined", { userId, roomId });
     });
 
-    rooms.forEach(({ roomId }) => {
-      socket.join(`room_${roomId}`);
+    socket.on("send_message", async (data) => {
+      const { content, roomId, senderId } = data;
+      const message = await prisma.message.create({
+        data: { content, roomId, senderId },
+      });
+
+      io.to(roomId).emit("receive_message", message);
     });
 
-    // Message handling
-    socket.on("sendMessage", async ({ roomId, content }) => {
-      try {
-        const message = await prisma.message.create({
-          data: {
-            content,
-            roomId,
-            senderId: socket.user.id,
-            status: "Sent",
-          },
-          include: { sender: true },
-        });
-
-        io.to(`room_${roomId}`).emit("newMessage", message);
-      } catch (error) {
-        console.error("Error sending message:", error);
-      }
-    });
-
-    socket.on("disconnect", () => {
-      console.log(`User disconnected: ${socket.user.username}`);
+    socket.on("disconnect", async () => {
+      console.log(`User Disconnected: ${socket.id}`);
     });
   });
-};
+}

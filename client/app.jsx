@@ -1,9 +1,9 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/auth.context";
 import { SocketProvider } from "./contexts/socket.context";
-import LoginPage from "./pages/login page";
-import ChatPage from "./pages/chat page";
-import ProtectedRoute from "./components/protected routes";
+import LoginPage from "./pages/loginpage";
+import ChatPage from "./pages/ChatPage";
+import ProtectedRoute from "./components/ProtectedRoutes";
 
 export default function App() {
   return (
