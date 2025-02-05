@@ -33,15 +33,37 @@ app.get("/", (req, res) => {
   res.json({ message: "API is running" });
 });
 
+// 🔥 Socket.io Logic
+io.on("connection", (socket) => {
+  console.log(`🟢 User Connected: ${socket.id}`);
+
+  socket.on("join_room", (roomId) => {
+    socket.join(roomId);
+    console.log(`User ${socket.id} joined room: ${roomId}`);
+  });
+
+  socket.on("send_message", async ({ roomId, senderId, message }) => {
+    if (!roomId || !senderId || !message) return;
+
+    // Store message in DB (Optional)
+    const newMessage = await prisma.message.create({
+      data: { roomId, senderId, message },
+    });
+
+    // Broadcast message to room
+    io.to(roomId).emit("receive_message", newMessage);
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`🔴 User Disconnected: ${socket.id}`);
+  });
+});
+
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", authMiddleware, userRoutes);
 app.use("/api/rooms", authMiddleware, roomRoutes);
 app.use("/api/messages", authMiddleware, messageRoutes);
-
-// Initialize Socket.io
-const io = new Server(server, { cors: corsOptions });
-initializeSocket(io, prisma);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

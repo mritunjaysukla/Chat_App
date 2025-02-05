@@ -1,114 +1,107 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useParams, Link } from "react-router-dom";
-import axios from "axios";
-import { motion } from "framer-motion";
-import { useSocket } from "../contexts/socket.context";
+import { useEffect, useState } from "react";
+import { useSocket } from "../contexts/socket.context"; // Use socket from context
 import { useAuth } from "../contexts/auth.context";
-import { format } from "date-fns";
-import { toast } from "react-hot-toast";
+import axios from "axios";
 
-export default function ChatPage() {
-  const { roomId } = useParams();
-  const { user } = useAuth();
-  const { socket } = useSocket();
-  const [messageInput, setMessageInput] = useState("");
+const Chat = () => {
+  const { user } = useAuth(); // Get logged-in user
+  const { socket, isConnected } = useSocket(); // Access socket from context
+  const [roomId, setRoomId] = useState("");
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState([]);
 
-  // Queries remain the same...
+  useEffect(() => {
+    if (!socket) return;
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!messageInput.trim() || !roomId) return;
+    socket.on("receive_message", (newMessage) => {
+      setMessages((prev) => [...prev, newMessage]);
+    });
+
+    return () => {
+      socket.off("receive_message");
+    };
+  }, [socket]);
+
+  const handleJoinRoom = async () => {
+    if (!roomId) return;
+    socket.emit("join_room", roomId);
 
     try {
-      socket.emit("send-message", {
-        roomId,
-        content: messageInput,
-      });
-      setMessageInput("");
+      const { data } = await axios.get(`/api/messages/${roomId}`);
+      setMessages(data);
     } catch (error) {
-      toast.error("Failed to send message");
+      console.error("Error fetching messages:", error);
     }
   };
 
+  const handleSendMessage = () => {
+    if (!message.trim()) return;
+
+    const newMessage = { roomId, senderId: user.id, message };
+    socket.emit("send_message", newMessage);
+    setMessages((prev) => [...prev, newMessage]);
+    setMessage("");
+  };
+
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className="w-80 border-r bg-white">
-        <div className="p-4 border-b">
-          <h2 className="text-xl font-semibold">Chat Rooms</h2>
-        </div>
-        <div className="overflow-y-auto h-[calc(100vh-4rem)]">
-          <div className="p-2 space-y-1">
-            {rooms.map((room) => (
-              <motion.div
-                key={room.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <Link
-                  to={`/${room.id}`}
-                  className={`block w-full px-4 py-2 text-left rounded hover:bg-gray-100 ${
-                    roomId === room.id ? "bg-gray-100" : ""
-                  }`}
-                >
-                  #{room.name}
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+    <div className="flex flex-col items-center h-screen p-4">
+      <h1 className="text-2xl font-bold mb-4">
+        Chat App {isConnected ? "🟢" : "🔴"}
+      </h1>
+
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Enter Room ID"
+          value={roomId}
+          onChange={(e) => setRoomId(e.target.value)}
+          className="border p-2 mr-2"
+        />
+        <button
+          onClick={handleJoinRoom}
+          className="bg-blue-500 text-white p-2 rounded"
+        >
+          Join Room
+        </button>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        <div className="p-4 border-b bg-white">
-          <h1 className="text-xl font-semibold">
-            {room ? `#${room.name}` : "Select a room"}
-          </h1>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message) => (
-            <motion.div
-              key={message.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex gap-3 items-start"
+      <div className="border p-4 w-96 h-80 overflow-y-auto mb-4">
+        {messages.length === 0 ? (
+          <p className="text-gray-500">No messages yet.</p>
+        ) : (
+          messages.map((msg, index) => (
+            <div
+              key={index}
+              className={`p-2 my-2 rounded ${
+                msg.senderId === user.id
+                  ? "bg-blue-200 self-end"
+                  : "bg-gray-200 self-start"
+              }`}
             >
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{message.sender.username}</span>
-                  <span className="text-sm text-gray-500">
-                    {format(new Date(message.createdAt), "HH:mm")}
-                  </span>
-                </div>
-                <p className="text-gray-800">{message.content}</p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              <strong>{msg.senderId === user.id ? "You" : "User"}:</strong>{" "}
+              {msg.message}
+            </div>
+          ))
+        )}
+      </div>
 
-        <div className="p-4 border-t bg-white">
-          <form onSubmit={handleSendMessage} className="flex gap-2">
-            <input
-              type="text"
-              value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-              placeholder="Type a message..."
-              className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
-              disabled={!roomId}
-            />
-            <button
-              type="submit"
-              disabled={!messageInput.trim() || !roomId}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-            >
-              Send
-            </button>
-          </form>
-        </div>
+      <div className="flex">
+        <input
+          type="text"
+          placeholder="Type a message..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="border p-2 w-64"
+        />
+        <button
+          onClick={handleSendMessage}
+          className="bg-green-500 text-white p-2 ml-2 rounded"
+        >
+          Send
+        </button>
       </div>
     </div>
   );
-}
+};
+
+export default Chat;
