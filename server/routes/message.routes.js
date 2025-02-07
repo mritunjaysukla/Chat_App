@@ -1,10 +1,9 @@
-import { Router } from "express";
-import { sendMessage, getMessages } from "../controllers/message.controller.js";
-import { authMiddleware } from "../middleware/auth.middleware.js";
+const express = require("express");
+const { sendMessage } = require("../controllers/message.controller");
 
-const router = Router();
+const router = express.Router();
 
-router.post("/", authMiddleware, sendMessage);
-router.get("/:roomId", authMiddleware, getMessages);
+// Send a message in a room
+router.post("/send", sendMessage);
 
-export default router;
+module.exports = router;
